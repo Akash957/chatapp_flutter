@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import '../UserModels/ChatModel.dart';
 import '../UserModels/UserModel.dart';
@@ -24,8 +26,6 @@ class ChatViewModel with ChangeNotifier {
           receiverId: element.child("receiverId").value.toString(),
           message: element.child("message").value.toString(),
           status: element.child("status").value.toString(),
-
-          // dateTime
           dateTime: element.child("dateTime").value != null
               ? DateTime.parse(element.child("dateTime").value.toString())
               : null,
@@ -36,6 +36,7 @@ class ChatViewModel with ChangeNotifier {
     });
   }
 
+  // Send a text message
   void sendChat({required String otherUid}) {
     var chatId = getChatId(cid: uid, otherId: otherUid);
     var timestamp = DateTime.now().toIso8601String();
@@ -46,11 +47,44 @@ class ChatViewModel with ChangeNotifier {
       'message': chatController.text,
       'status': 'sent',
       'dateTime': timestamp,
+      'isImage': false,
+      'imageUrl': null,
     };
 
     FirebaseDatabase.instance.ref('messages/$chatId').push().set(chatMessage);
 
     chatController.clear();
+  }
+
+  // Send an image message
+  Future<void> sendImage({required String otherUid, required String imagePath}) async {
+    try {
+      var chatId = getChatId(cid: uid, otherId: otherUid);
+      var timestamp = DateTime.now().toIso8601String();
+
+
+      String fileName = "chat_images/${generateRandomString(10)}.jpg";
+      UploadTask uploadTask = FirebaseStorage.instance
+          .ref(fileName)
+          .putFile(File(imagePath));
+
+      TaskSnapshot snapshot = await uploadTask;
+      String imageUrl = await snapshot.ref.getDownloadURL();
+
+      var chatMessage = {
+        'senderId': uid,
+        'receiverId': otherUid,
+        'message': "",
+        'status': 'sent',
+        'dateTime': timestamp,
+        'isImage': true,
+        'imageUrl': imageUrl,
+      };
+
+      FirebaseDatabase.instance.ref('messages/$chatId').push().set(chatMessage);
+    } catch (e) {
+      print("Error sending image: $e");
+    }
   }
 
   String generateRandomString(int len) {

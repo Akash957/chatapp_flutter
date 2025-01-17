@@ -4,6 +4,8 @@ class ChatModel {
   final String message;
   final String status;
   final DateTime? dateTime;
+  final bool isImage;
+  final String? imageUrl;
 
   ChatModel({
     required this.senderId,
@@ -11,6 +13,8 @@ class ChatModel {
     required this.message,
     required this.status,
     this.dateTime,
+    this.isImage = false,
+    this.imageUrl,
   });
 
   Map<String, dynamic> toJson() {
@@ -20,6 +24,8 @@ class ChatModel {
       "message": message,
       "status": status,
       "dateTime": dateTime?.toIso8601String(),
+      "isImage": isImage,
+      "imageUrl": imageUrl,
     };
   }
 
@@ -32,6 +38,8 @@ class ChatModel {
       dateTime: json["dateTime"] != null
           ? DateTime.parse(json["dateTime"])
           : null,
+      isImage: json["isImage"] ?? false,
+      imageUrl: json["imageUrl"],
     );
   }
 }

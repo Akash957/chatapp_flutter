@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'PageScreen/LoginPage.dart';
+import 'PageScreen/SplashScreen.dart';
 import 'Provider/ChatViewModel.dart';
 import 'Provider/UserViewModel.dart';
 import 'firebase_options.dart';
@@ -26,6 +26,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: LoginPage());
+    return MaterialApp(debugShowCheckedModeBanner: false,
+        home: SplashScreen());
   }
 }

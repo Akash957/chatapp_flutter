@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../Provider/UserViewModel.dart';
-import 'SignupPage.dart';
+import 'LoginPage.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class SignupPage extends StatefulWidget {
+  const SignupPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<SignupPage> createState() => _SignupPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     var provider = Provider.of<UserViewModel>(context, listen: false);
@@ -21,13 +21,12 @@ class _LoginPageState extends State<LoginPage> {
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.blue, Colors.lightBlueAccent],
+                colors: [Colors.blue, Colors.red],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
             ),
           ),
-          // Main Container
           Positioned(
             top: 180,
             left: 0,
@@ -47,7 +46,7 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     const SizedBox(height: 20),
                     const Text(
-                      "Login",
+                      "Sign Up",
                       style: TextStyle(
                         color: Colors.black,
                         fontSize: 28,
@@ -56,6 +55,17 @@ class _LoginPageState extends State<LoginPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
+                    TextField(
+                      controller: provider.nameController,
+                      decoration: InputDecoration(
+                        hintText: "Name",
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
                     TextField(
                       controller: provider.emailController,
                       decoration: InputDecoration(
@@ -89,19 +99,20 @@ class _LoginPageState extends State<LoginPage> {
                         padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                       onPressed: () {
-                        provider.userLogin(context);
+                        provider.userSignUp(context);
                       },
                       child: const Text(
-                        "Login",
+                        "Sign Up",
                         style: TextStyle(fontSize: 18),
                       ),
                     ),
                     const SizedBox(height: 15),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          "Don't have an account?",
+                          "Already have an account?",
                           style: TextStyle(fontSize: 16),
                         ),
                         TextButton(
@@ -109,12 +120,11 @@ class _LoginPageState extends State<LoginPage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const SignupPage(),
-                              ),
+                                  builder: (context) => const LoginPage()),
                             );
                           },
                           child: const Text(
-                            "Sign Up",
+                            "Log In",
                             style: TextStyle(fontSize: 16, color: Colors.blue),
                           ),
                         ),
@@ -125,6 +135,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
+          // Header Design
           Positioned(
             top: 0,
             left: 0,
@@ -144,7 +155,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               child: const Center(
                 child: Text(
-                  "Welcome Back!",
+                  "Create Your Account",
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 26,

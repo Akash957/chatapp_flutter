@@ -23,7 +23,9 @@ class ProfileScreen extends StatelessWidget {
             Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => HomePage(),
+                  builder: (context) => HomePage(
+                    uid: "",
+                  ),
                 ));
           },
         ),
@@ -48,14 +50,14 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  name, // Display user's name
+                  name,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  email, // Display user's email
+                  email,
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -74,7 +76,10 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'Open Instagram',
-                    style: TextStyle(fontSize: 16, color: Colors.black,),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
               ],
@@ -104,7 +109,7 @@ class ProfileScreen extends StatelessWidget {
           leading: Icon(icon, color: Colors.black),
           title: Text(title, style: const TextStyle(fontSize: 16)),
           trailing:
-          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
           onTap: () {},
         ),
         if (!isLast)

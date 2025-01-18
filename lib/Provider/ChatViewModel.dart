@@ -1,116 +1,60 @@
-import 'dart:io';
 import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import '../UserModels/ChatModel.dart';
-import '../UserModels/UserModel.dart';
 
 class ChatViewModel with ChangeNotifier {
   final TextEditingController chatController = TextEditingController();
-  final String chatHint = "Enter your message...";
   var chatList = <ChatModel>[];
-  var userList = <UserModel>[];
   final String uid = FirebaseAuth.instance.currentUser?.uid ?? "";
 
-  // Get chat list from Firebase Realtime Database
-  void getChatList({required String cid, required String otherId}) {
+  Future<void> getChatList({required String cid, required String otherId}) async {
     var chatId = getChatId(cid: cid, otherId: otherId);
-
-    FirebaseDatabase.instance.ref('messages/$chatId').onValue.listen((event) {
+    DatabaseReference chatRef =
+    FirebaseDatabase.instance.ref('messages/$chatId');
+    chatRef.orderByChild("dateTime").onValue.listen((event) {
       chatList.clear();
-      for (var element in event.snapshot.children) {
-        var chat = ChatModel(
-          senderId: element.child("senderId").value.toString(),
-          receiverId: element.child("receiverId").value.toString(),
-          message: element.child("message").value.toString(),
-          status: element.child("status").value.toString(),
-          dateTime: element.child("dateTime").value != null
-              ? DateTime.parse(element.child("dateTime").value.toString())
-              : null,
-        );
+      var data = event.snapshot.children;
+      for (var element in data) {
+        var chat = ChatModel.fromJson(Map<String, dynamic>.from(
+            element.value as Map<dynamic, dynamic>));
         chatList.add(chat);
       }
       notifyListeners();
     });
   }
 
-  // Send a text message
-  void sendChat({required String otherUid}) {
+  Future<void> sendChat({required String otherUid, String? imageUrl}) async {
     var chatId = getChatId(cid: uid, otherId: otherUid);
-    var timestamp = DateTime.now().toIso8601String();
+    var randomId = generateRandomString(40);
+    DatabaseReference chatRef =
+    FirebaseDatabase.instance.ref('messages/$chatId');
 
-    var chatMessage = {
-      'senderId': uid,
-      'receiverId': otherUid,
-      'message': chatController.text,
-      'status': 'sent',
-      'dateTime': timestamp,
-      'isImage': false,
-      'imageUrl': null,
-    };
+    var messageType = imageUrl != null ? "image" : "text";
+    var messageData = ChatModel(
+      message: imageUrl == null ? chatController.text.trim() : null,
+      senderId: uid,
+      receiverId: otherUid,
+      status: "sent",
+      photo_url: imageUrl,
+      message_type: messageType,
+      dateTime: DateTime.now(),
+    );
 
-    FirebaseDatabase.instance.ref('messages/$chatId').push().set(chatMessage);
-
-    chatController.clear();
-  }
-
-  // Send an image message
-  Future<void> sendImage({required String otherUid, required String imagePath}) async {
-    try {
-      var chatId = getChatId(cid: uid, otherId: otherUid);
-      var timestamp = DateTime.now().toIso8601String();
-
-
-      String fileName = "chat_images/${generateRandomString(10)}.jpg";
-      UploadTask uploadTask = FirebaseStorage.instance
-          .ref(fileName)
-          .putFile(File(imagePath));
-
-      TaskSnapshot snapshot = await uploadTask;
-      String imageUrl = await snapshot.ref.getDownloadURL();
-
-      var chatMessage = {
-        'senderId': uid,
-        'receiverId': otherUid,
-        'message': "",
-        'status': 'sent',
-        'dateTime': timestamp,
-        'isImage': true,
-        'imageUrl': imageUrl,
-      };
-
-      FirebaseDatabase.instance.ref('messages/$chatId').push().set(chatMessage);
-    } catch (e) {
-      print("Error sending image: $e");
-    }
+    await chatRef.child(randomId).set(messageData.toJson());
+    if (imageUrl == null) chatController.clear();
+    notifyListeners();
   }
 
   String generateRandomString(int len) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    return String.fromCharCodes(
-      Iterable.generate(len, (_) => chars.codeUnitAt(Random().nextInt(chars.length))),
-    );
+    const chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
+    return List.generate(len, (index) => chars[Random().nextInt(chars.length)])
+        .join();
   }
 
   String getChatId({required String cid, required String otherId}) {
     return cid.compareTo(otherId) > 0 ? "${cid}_$otherId" : "${otherId}_$cid";
   }
 
-  void getUserList() {
-    FirebaseDatabase.instance.ref('users').onValue.listen((event) {
-      userList.clear();
-      for (var element in event.snapshot.children) {
-        var user = UserModel(
-          id: element.child("id").value.toString(),
-          name: element.child("name").value.toString(),
-          email: element.child("email").value.toString(),
-          password: element.child("password").value.toString(),
-        );
-        userList.add(user);
-      }
-      notifyListeners();
-    });
-  }
 }

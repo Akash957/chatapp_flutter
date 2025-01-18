@@ -1,137 +1,193 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../Provider/ChatViewModel.dart';
+import 'HomePage.dart';
 
-class ChatPage extends StatefulWidget {
-  final String otherUid, name;
+class ChatScreen extends StatefulWidget {
+  final String otherUid;
+  final String otherName;
 
-  const ChatPage({super.key, required this.otherUid, required this.name});
+  const ChatScreen({
+    super.key,
+    required this.otherUid,
+    required this.otherName,
+  });
 
   @override
-  State<ChatPage> createState() => _ChatPageState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatPageState extends State<ChatPage> {
-  final String? uId = FirebaseAuth.instance.currentUser?.uid;
-  final ImagePicker _picker = ImagePicker();
+class _ChatScreenState extends State<ChatScreen> {
+  final uId = FirebaseAuth.instance.currentUser?.uid;
+  final ScrollController scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatViewModel>().getChatList(cid: uId ?? "", otherId: widget.otherUid);
-    });
+    var uid = FirebaseAuth.instance.currentUser?.uid ?? "";
+    Future.delayed(
+      Duration(seconds: 2),
+          () async {
+        var viewModel = Provider.of<ChatViewModel>(context, listen: false);
+        await viewModel.getChatList(cid: uid, otherId: widget.otherUid);
+      },
+    );
   }
 
-  Future<void> _pickImage() async {
+  Future<void> pickAndSendImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      File imageFile = File(pickedFile.path);
+      String imageUrl = await _uploadImageToFirebase(imageFile);
+      Provider.of<ChatViewModel>(context, listen: false).sendChat(
+        otherUid: widget.otherUid,
+        imageUrl: imageUrl,
+      );
+    }
+  }
+
+  Future<String> _uploadImageToFirebase(File imageFile) async {
+    String fileName =
+        "chat_images/${DateTime.now().millisecondsSinceEpoch}.jpg";
     try {
-      final image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        context.read<ChatViewModel>().sendImage(otherUid: widget.otherUid, imagePath: image.path);
-      }
+      final storageRef = FirebaseStorage.instance.ref().child(fileName);
+      await storageRef.putFile(imageFile);
+      return await storageRef.getDownloadURL();
     } catch (e) {
-      debugPrint("Error picking image: $e");
+      print("Error uploading image: $e");
+      throw Exception("Image upload failed");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<ChatViewModel>();
-
+    var viewModel = Provider.of<ChatViewModel>(context, listen: false);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.orange,
-        title: Text(widget.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
-        centerTitle: true,
-        actions: [IconButton(icon: const Icon(Icons.more_vert), onPressed: () {})],
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomePage(uid: ""),
+              ),
+            );
+          },
+          icon: Icon(Icons.arrow_back),
+        ),
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: AssetImage("images/young.png"),
+            ),
+            SizedBox(width: 10),
+            Text(
+              widget.otherName,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
           Expanded(
-            child: viewModel.chatList.isEmpty
-                ? const Center(child: Text("No messages yet", style: TextStyle(color: Colors.grey)))
-                : ListView.builder(
-              reverse: true,
-              itemCount: viewModel.chatList.length,
-              padding: const EdgeInsets.all(8),
-              itemBuilder: (context, index) {
-                final chat = viewModel.chatList[index];
-                final isSender = chat.senderId == uId;
-                final formattedTime = chat.dateTime != null
-                    ? DateFormat('hh:mm a').format(chat.dateTime!)
-                    : 'No time';
-
-                return Align(
-                  alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Column(
-                    crossAxisAlignment: isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                    children: [
-                      if (chat.isImage && chat.imageUrl != null)
-                        Image.asset(chat.imageUrl!, height: 100, width: 100, fit: BoxFit.cover)
-                      else
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.7,
-                          ),
+            child: Consumer<ChatViewModel>(
+              builder: (context, value, child) {
+                if (value.chatList.isEmpty) {
+                  return Center(
+                    child: Text(
+                      "No messages yet",
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  controller: scrollController,
+                  itemCount: value.chatList.length,
+                  itemBuilder: (context, index) {
+                    var user = value.chatList[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8.0, horizontal: 16.0),
+                      child: Align(
+                        alignment: user.senderId == uId
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
                           decoration: BoxDecoration(
-                            color: isSender ? Colors.orange.shade400 : Colors.grey.shade200,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: Radius.circular(isSender ? 16 : 4),
-                              bottomRight: Radius.circular(isSender ? 4 : 16),
-                            ),
+                            color: user.senderId == uId
+                                ? Colors.blue[100]
+                                : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
-                            chat.message,
-                            style: TextStyle(color: isSender ? Colors.white : Colors.black87),
+                          padding: const EdgeInsets.all(10.0),
+                          child: user.message_type == "image"
+                              ? Image.network(
+                            user.photo_url ?? "",
+                            height: 150,
+                            width: 150,
+                            fit: BoxFit.cover,
+                          )
+                              : Text(
+                            user.message ?? "",
+                            style: TextStyle(fontSize: 14),
                           ),
                         ),
-                      const SizedBox(height: 4),
-                      Text(formattedTime, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.grey.shade100,
+          // Message Input Section
+          Padding(
+            padding:
+            const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
             child: Row(
               children: [
-                IconButton(icon: const Icon(Icons.photo), onPressed: _pickImage),
                 Expanded(
                   child: TextField(
                     controller: viewModel.chatController,
-                    maxLines: null,
                     decoration: InputDecoration(
-                      hintText: viewModel.chatHint,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      hintText: "Type a message",
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: const BorderSide(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
+                      suffixIcon: IconButton(
+                        onPressed: pickAndSendImage,
+                        icon: Icon(Icons.photo, color: Colors.grey[700]),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                GestureDetector(
+                SizedBox(width: 8),
+                InkWell(
                   onTap: () {
-                    if (viewModel.chatController.text.trim().isNotEmpty) {
-                      viewModel.sendChat(otherUid: widget.otherUid);
-                    }
+                    viewModel.sendChat(otherUid: widget.otherUid);
+                    Future.delayed(
+                      Duration(milliseconds: 300),
+                          () {
+                        if (scrollController.hasClients) {
+                          scrollController.jumpTo(
+                            scrollController.position.maxScrollExtent,
+                          );
+                        }
+                      },
+                    );
                   },
                   child: CircleAvatar(
-                    radius: 25,
-                    backgroundColor: Colors.orange.shade400,
-                    child: const Icon(Icons.send, color: Colors.white),
+                    backgroundColor: Colors.blue,
+                    radius: 24,
+                    child: Icon(Icons.send, color: Colors.white),
                   ),
                 ),
               ],
